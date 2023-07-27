@@ -11,7 +11,7 @@ mongoose.set("strictQuery", true);
 mongoose.connect("mongodb+srv://SagarMaan:yHJBlRWQ0FdJmdj6@chaudhary-shaab-db.cueddss.mongodb.net/Assignment",
     { useNewUrlParser: true }
 )
-    .then(() => console.log("mongoDB is connected."))
+    .then(() => console.log("MongoDB is connected."))
     .catch((err) => console.log(err));
 
 app.use("/", route);

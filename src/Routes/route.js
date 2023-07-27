@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { userRegistration } = require("../Controllers/userController");
+const { userRegistration , userLogin , forgotPassword , resetPassword } = require("../Controllers/userController");
 
 
 
@@ -8,7 +8,9 @@ const { userRegistration } = require("../Controllers/userController");
 
 
 router.post( "/registration" , userRegistration );
-// router.post( "/login" , userLogin );
+router.post( "/login" , userLogin );
+router.post( "/forgotPassword" , forgotPassword );
+router.get( "/resetPassword" , resetPassword )
 // router.get( "/user/:userId/profile" , isAuthenticated , getUsers );
 // router.put( "/user/:userId/profile" , isAuthenticated , isAuthorized , updateUser );
 
@@ -18,7 +20,7 @@ router.post( "/registration" , userRegistration );
 
 
 router.all('/*', ( req , res ) => {
-    res.status(400).send({ status: false, message: " Path invalid." });
+    res.status(400).send({ status: false, message: "Path invalid." });
 });
 
 
