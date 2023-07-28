@@ -5,23 +5,25 @@ const userSchema = new mongoose.Schema(
         userName : {
             type : String ,
             required : true ,
-            unique : true,
             trim : true
         } ,
         emailId : {
             type : String ,
             required : true ,
-            unique : true ,
             trim : true
         } ,
         password :{
             type : String ,
             required : true ,
-            trim : true
+            trim :true
         } ,
-        resetToken : {
+        resetToken : {        
             type : String ,
             default : ''
+        } ,
+        otp :{
+            type :Number ,
+            default :''
         }
     } , {timestamps : true }
 )

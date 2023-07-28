@@ -9,43 +9,85 @@ const {
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-// const mailGen = require('mailgen');
 const randomString = require("randomstring");
+const otpGenerator = require("otp-generator");
 
 
 
+let transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: "465",
+  secure: true,
+  requireTLS: true,
+  auth: {
+    user: "sagarmaan2015@gmail.com",
+    pass: "zsfopkdqzsylkzfu",
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
 
+transporter.verify((error, success) => {
+  if (error) {
+    console.log(error);
+  } else {
+    console.log("Ready for message");
+    console.log(success);
+  }
+});
 
-
-const forgotPasswordEmail = async function (userName, emailId, token, res) {
+const forgotPasswordLink = async function (userName, emailId, resetToken) {
   try {
-    let config = {
-      host: "smtp.gmail.com",
-      port: "587",
-      secure: false,
-      requireTLS: true,
-      auth: {
-        user: "sagarmaan210@gmail.com",
-        pass: "Maan@28051997", // Use "pass" instead of "password" for Nodemailer
-      },
+    let message = {
+      from: "sagarmaan2015@gmail.com",
+      to: emailId,
+      subject: "Password reset link",
+      text: "Click on the following link to reset your password",
+      html:
+        "<p> Hii " +
+        userName +
+        ' , Please follow the link given below and <a href="http://127.0.0.1:3000/resetPassword?token=' +
+        resetToken +
+        '">reset your password.</a></p>',
     };
-    
-  let transporter = nodemailer.createTransport(config);
 
-let message = {
-  from: "sagarmaan210@gmail.com",
-  to: emailId,
-  subject: "Password reset link",
-  text: "Click on the following link to reset your password",
-  html:
-    "<p>Hii " +
-    userName +
-    ' , follow the link given below and <a href="http://127.0.0.1:3000/resetPassword?' +
-    token +
-    '">reset your password</a></p>',
+    transporter
+      .sendMail(message)
+      .then(() => {
+        return { message: "verification email sent" };
+      })
+      .catch((error) => {
+        return error.message;
+      });
+  } catch (error) {
+    return res.status(500).send({ status: false, message: error.message });
+  }
 };
-    const info = await transporter.sendMail(message);
-    console.log(`Mail has been sent to ${emailId}.`, info.response);
+
+const otpGeneretorLink = async function (userName, emailId, otp) {
+  try {
+    let message = {
+      from: "sagarmaan2015@gmail.com",
+      to: emailId,
+      subject: "OTP for change password.",
+      text: "Click on the following link to reset your password",
+      html:
+        "<p> Hii " +
+        userName +
+        ' , Use this OTP and <a href="http://127.0.0.1:3000/changePassword?otp=' +
+        otp +
+        '">reset your password.</a></p>',
+    };
+
+    transporter
+      .sendMail(message)
+      .then(() => {
+        return { message: "verification email sent" };
+      })
+      .catch((error) => {
+        return error.message;
+      });
   } catch (error) {
     return res.status(500).send({ status: false, message: error.message });
   }
@@ -86,6 +128,7 @@ const userRegistration = async function (req, res) {
         .status(400)
         .send({ status: false, message: "Please provide valid  emailId" });
 
+    
     if (!password || !password.trim())
       return res.status(400).send({
         status: false,
@@ -98,36 +141,48 @@ const userRegistration = async function (req, res) {
         .send({ status: false, message: "Please provide valid password" });
 
     let hashing = bcrypt.hashSync(password, 8);
-    body.password = hashing;
-
-    let checkDuplicate = await userModel.find({
-      $or: [{ userName: userName }, { emailId: emailId }],
+    password = hashing;
+    emailId = emailId.trim();
+    userName = userName.trim();
+   
+    let checkDuplicate = await userModel.findOne({
+      $or: [{ userName: userName },{ emailId: emailId } ],
     });
+   
 
+    if(checkDuplicate){
     if (checkDuplicate.userName === userName) {
       return res.status(400).send({
         status: false,
         message: "This user name is already registered.",
       });
-    } else if (checkDuplicate.emailId === emailId) {
+    }
+    else if (checkDuplicate.emailId === emailId) {
       return res.status(400).send({
         status: false,
         message: "This email ID is already registered.",
       });
-    } else {
-
-      let userRegister = await userModel.create(body);
+    }
+    }
+  
+      let userRegister = await userModel.create({
+        userName,
+        emailId,
+        password,
+      });
 
       return res.status(201).send({
-        status: true,
+        status: true,      
         message: "User login successfully.",
         data: userRegister,
       });
-    }
+    
   } catch (error) {
     return res.status(500).send({ status: false, message: error.message });
   }
 };
+
+//================================= User Login ================================================//
 
 const userLogin = async function (req, res) {
   try {
@@ -189,13 +244,13 @@ const userLogin = async function (req, res) {
   }
 };
 
+//================================= Email send for reset password link  =========================================//
 
-
-const forgotPassword = async function (req, res) {
+const forgotPasswordEmail = async function (req, res) {
   try {
     let { emailId } = req.body;
 
-    let checkEmail = await userModel.find({ emailId: emailId });
+    let checkEmail = await userModel.findOne({ emailId: emailId.trim() });
 
     if (checkEmail) {
       const resetToken = randomString.generate();
@@ -204,13 +259,18 @@ const forgotPassword = async function (req, res) {
         { resetToken: resetToken }
       );
 
-      forgotPasswordEmail( emailId , resetToken , res);
-
-      return res
-        .status(200)
-        .send({
-          status: true,
-          message: "Reset password link send successfully to your emailId.",
+      forgotPasswordLink(checkEmail.userName, checkEmail.emailId, resetToken)
+        .then(() => {
+          return res.status(200).send({
+            status: true,
+            message: "Reset password link send successfully to your emailId.",
+          });
+        })
+        .catch((error) => {
+          return res.status(200).send({
+            status: true,
+            message: error.message,
+          });
         });
     } else {
       return res
@@ -222,12 +282,144 @@ const forgotPassword = async function (req, res) {
   }
 };
 
+//================================= Reset Password via Link  ================================================//
 
-const resetPassword = async function ( req , res ) {
-  try{
+const resetPasswordByLink = async function (req, res) {
+  try {
+    let token = req.query.token;
 
-  }catch(error){
+    let checkToken = await userModel.findOne({ resetToken: token });
+
+    if (checkToken) {
+      let body = req.body;
+      let { newPassword } = body;
+
+      if (!newPassword || !newPassword.trim())
+        return res.status(400).send({
+          status: false,
+          message: "Please provide password , it can't be empty",
+        });
+
+      if (!validatePassword(newPassword))
+        return res
+          .status(400)
+          .send({ status: false, message: "Please provide valid password" });
+
+      let hashing = bcrypt.hashSync(newPassword, 8);
+      newPassword = hashing;
+
+      let updatePassword = await userModel.findOneAndUpdate(
+        { _id: checkToken._id },
+        { $set: { password: newPassword, resetToken: "" } },
+        { new: true }
+      );
+      return res.status(200).send({
+        status: true,
+        message: "Password reset successfully.",
+        data: updatePassword,
+      });
+    } else {
+      return res.status(400).send({
+        status: false,
+        message: "Your token may be invalid or expired.",
+      });
+    }
+  } catch (error) {
     return res.status(500).send({ status: false, message: error.message });
   }
-}
-module.exports = { userRegistration, userLogin, forgotPassword , resetPassword};
+};
+
+//================================ OTP send via Email for reset password  =======================================//
+
+const otpGeneratorEmail = async function (req, res) {
+  try {
+    let { emailId } = req.body;
+
+    let checkEmail = await userModel.findOne({ emailId: emailId });
+
+    if (checkEmail) {
+      let newOTP = otpGenerator.generate(6, {
+        upperCaseAlphabets: false,
+        specialChars: false,
+        lowerCaseAlphabets: false,
+      });
+      await userModel.findOneAndUpdate({ emailId: emailId }, { otp: newOTP });
+
+      otpGeneretorLink(checkEmail.userName, checkEmail.emailId, newOTP)
+        .then(() => {
+          return res.status(200).send({
+            status: true,
+            message: "OTP send successfully to your emailId.",
+          });
+        })
+        .catch((error) => {
+          return res.status(200).send({
+            status: true,
+            message: error.message,
+          });
+        });
+    } else {
+      return res
+        .status(404)
+        .send({ status: false, message: "User not found with this emailId." });
+    }
+  } catch (error) {
+    return res.status(500).send({ status: false, message: error.message });
+  }
+};
+
+//================================  Reset password via OTP =======================================//
+
+const changePasswordByOTP = async function (req, res) {
+  try {
+    let otp = req.query.otp;
+
+    let checkOTP = await userModel.findOne({ otp: otp });
+
+    if (checkOTP) {
+      let body = req.body;
+      let { newPassword } = body;
+
+      if (!newPassword || !newPassword.trim())
+        return res.status(400).send({
+          status: false,
+          message: "Please provide password , it can't be empty",
+        });
+
+      if (!validatePassword(newPassword))
+        return res
+          .status(400)
+          .send({ status: false, message: "Please provide valid password" });
+
+      let hashing = bcrypt.hashSync(newPassword, 8);
+      newPassword = hashing;
+
+      let changePassword = await userModel.findOneAndUpdate(
+        { _id: checkOTP._id },
+        { $set: { password: newPassword, otp: "" } },
+        { new: true }
+      );
+      return res.status(200).send({
+        status: true,
+        message: "Password change successfully.",
+        data: changePassword,
+      });
+    } else {
+      return res.status(400).send({
+        status: false,
+        message: "Your token may be invalid or expired.",
+      });
+    }
+  } catch (error) {
+    return res.status(500).send({ status: false, message: error.message });
+  }
+};
+
+module.exports = {
+  userRegistration,
+  userLogin,
+  forgotPasswordEmail,
+  resetPasswordByLink,
+  otpGeneratorEmail,
+  changePasswordByOTP,
+};

@@ -1,6 +1,5 @@
 const router = require("express").Router();
-const { userRegistration , userLogin , forgotPassword , resetPassword } = require("../Controllers/userController");
-
+const { userRegistration , userLogin , forgotPasswordEmail , resetPasswordByLink , otpGeneratorEmail , changePasswordByOTP } = require("../Controllers/userController");
 
 
 
@@ -9,10 +8,10 @@ const { userRegistration , userLogin , forgotPassword , resetPassword } = requir
 
 router.post( "/registration" , userRegistration );
 router.post( "/login" , userLogin );
-router.post( "/forgotPassword" , forgotPassword );
-router.get( "/resetPassword" , resetPassword )
-// router.get( "/user/:userId/profile" , isAuthenticated , getUsers );
-// router.put( "/user/:userId/profile" , isAuthenticated , isAuthorized , updateUser );
+router.post( "/forgotPassword" , forgotPasswordEmail );
+router.patch( "/resetPassword" , resetPasswordByLink )
+router.post( "/otpGenerator" , otpGeneratorEmail )
+router.patch( "/changePassword" , changePasswordByOTP )
 
 
 
